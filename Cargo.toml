@@ -1,0 +1,22 @@
+[package]
+name = "private-inclusion-proofs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+[profile.release]
+panic = "abort"
+overflow-checks = true
+codegen-units = 1
+lto = true
+strip = true
+
+[profile.dev]
+panic = "abort"
+
+# Compilation profile for any non-workspace member.
+# Dependencies are optimized, even in a dev build. This improves dev performance
+# while having neglible impact on incremental build times.
+[profile.dev.package."*"]
+opt-level = 3
