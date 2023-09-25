@@ -10,6 +10,7 @@ ruint = { version = "1.2.0", features = ["serde", "num-bigint", "ark-ff"] }
 semaphore = { git = "https://github.com/worldcoin/semaphore-rs" }
 hex = "0.4.3"
 rand = "0.8.5"
+rand_chacha = "0.3.1"
 
 [profile.release]
 panic = "abort"

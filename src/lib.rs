@@ -5,9 +5,6 @@ use typenum::U32;
 
 pub mod utils;
 
-// hash two algined bytes
-// convert u256 to aligned bytes and back (assume aligned bytes are stored in big endian)
-
 pub struct PoseidonHash;
 
 impl PoseidonHash {
@@ -15,7 +12,7 @@ impl PoseidonHash {
         let left = aligned_bytes_to_u256(left);
         let right = aligned_bytes_to_u256(right);
         let hash: [u8; 32] = poseidon::hash2(left, right).to_be_bytes();
-        Aligned(GenericArray::from(hash))
+        A8Bytes::<U32>::from(Aligned(GenericArray::from(hash)))
     }
 }
 
@@ -102,11 +99,17 @@ impl Tree {
             let sibling_index = sibling_index(index);
             let sibling_node = level.read_index(sibling_index);
 
-            // if node's index is even then it's the left child, otherwise right.
-            let (left, right) = if index & 0 == 0 {
-                (&value, sibling_node)
-            } else {
+            // println!(
+            //     "index: {index}; node: {} ; sibling {}",
+            //     bytes_to_hex_str(value.as_slice()),
+            //     bytes_to_hex_str(sibling_node.as_slice())
+            // );
+
+            // if node's index is off then it's the right child, otherwise left.
+            let (left, right) = if index & 1 == 1 {
                 (sibling_node, &value)
+            } else {
+                (&value, sibling_node)
             };
             value = PoseidonHash::hash_node(left, right);
 
@@ -127,7 +130,7 @@ impl Tree {
         inclusion_proof[0] = sibling_node;
 
         let mut inclusion_proof_index = 1;
-        let mut curr_depth = self.depth - 1 - 1;
+        let mut curr_depth = self.depth - 1;
 
         // parent and parent's sibling index at level `depth-1`
         let mut parent_index = node_index >> 1;
@@ -146,6 +149,10 @@ impl Tree {
 
     pub fn root(&self) -> &A8Bytes<U32> {
         &self.root
+    }
+
+    pub fn leaf(&self, index: usize) -> &A8Bytes<U32> {
+        &self.levels[self.depth - 1].data[index]
     }
 }
 
@@ -176,5 +183,44 @@ pub fn print_tree(tree: &Tree) {
             l_nodes.push(bytes_to_hex_str(node.as_slice()));
         }
         println!("Level {}: {:?}", l + 1, l_nodes);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::{rand_leaf, random_tree, seeded_rng};
+    use aligned_cmov::{typenum::U8, A8Bytes, Aligned, GenericArray, A8};
+    use rand::thread_rng;
+
+    #[test]
+    fn inclusion_proof_works() {
+        let mut rng = seeded_rng();
+        let mut tree = random_tree(16, 1 << 16, &mut rng);
+
+        let mut leaf_index = 2;
+        let leaf = tree.leaf(leaf_index);
+        let proof = tree.inclusion_proof(leaf);
+
+        let proof_hex = proof
+            .iter()
+            .map(|node| bytes_to_hex_str(node.as_slice()))
+            .collect::<Vec<String>>();
+
+        // check proof
+        let mut curr_index = leaf_index;
+        let mut curr_node = A8Bytes::from(leaf.clone());
+        for i in 0..tree.depth {
+            let (left, right): (&A8Bytes<U32>, &A8Bytes<U32>) = if curr_index & 1 == 1 {
+                (&proof[i], &curr_node)
+            } else {
+                (&curr_node, &proof[i])
+            };
+
+            curr_node = PoseidonHash::hash_node(left, right);
+            curr_index >>= 1;
+        }
+
+        assert_eq!(&curr_node, tree.root());
     }
 }

@@ -2205,6 +2205,7 @@ dependencies = [
  "aligned-cmov",
  "hex",
  "rand",
+ "rand_chacha",
  "ruint",
  "semaphore",
  "typenum",
