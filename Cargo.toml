@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+aligned-cmov = {git = "https://github.com/mobilecoinfoundation/mc-oblivious.git"}
 
 [profile.release]
 panic = "abort"
