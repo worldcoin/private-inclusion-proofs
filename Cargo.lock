@@ -2208,6 +2208,7 @@ dependencies = [
  "rand_chacha",
  "ruint",
  "semaphore",
+ "subtle",
  "typenum",
 ]
 

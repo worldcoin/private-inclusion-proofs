@@ -1,6 +1,7 @@
 use crate::utils::{aligned_bytes_to_u256, bytes_to_hex_str};
-use aligned_cmov::{typenum::U8, A8Bytes, Aligned, GenericArray, A8};
+use aligned_cmov::{typenum::U8, A8Bytes, Aligned, ArrayLength, CMov, GenericArray, A8};
 use semaphore::poseidon;
+use subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 use typenum::U32;
 
 pub mod utils;
@@ -28,35 +29,34 @@ impl Level {
         &self.data[index]
     }
 
-    fn scan_and_load_sibling(&self, node: &A8Bytes<U32>) -> (usize, A8Bytes<U32>) {
+    /// scan for `node` and retursn node's index and sibling node in constant-time
+    fn ct_scan_and_load_sibling(&self, node: &A8Bytes<U32>) -> (u64, A8Bytes<U32>) {
         // Load 4Kb using ocall; do some stuff and store.
-        let mut sibling = Default::default();
+        let mut sibling: A8Bytes<U32> = Default::default();
         let mut i = 0;
         let mut node_index = 0;
-        while i < self.data.len() {
-            // TODO: make oblivious
-            if &self.data[i] == node {
-                sibling = self.data[i + 1].clone();
-                node_index = i;
-            }
-            if &self.data[i + 1] == node {
-                sibling = self.data[i].clone();
-                node_index = i + 1;
-            }
+        while i < self.data.len() as u64 {
+            // if node is i^th node then sibling is (i+1)^th node
+            let is_eq = ct_eq_a32bytes(&self.data[i as usize], &node);
+            sibling.cmov(is_eq, &self.data[(i + 1) as usize]);
+            node_index.conditional_assign(&i, is_eq);
+
+            // if node is (i+1)^th node then sibling is i^th node
+            let is_eq = ct_eq_a32bytes(&self.data[(i + 1) as usize], &node);
+            sibling.cmov(is_eq, &self.data[i as usize]);
+            node_index.conditional_assign(&(i + 1), is_eq);
+
             i += 2;
         }
         (node_index, sibling)
     }
 
-    fn scan_sibling_node(&self, node_index: usize) -> (A8Bytes<U32>) {
-        let sibling_index = sibling_index_ct(node_index);
-        let mut sibling = Default::default();
+    fn ct_scan_sibling_node(&self, node_index: u64) -> (A8Bytes<U32>) {
+        let sibling_index = ct_sibling_index(node_index);
+        let mut sibling: A8Bytes<U32> = Default::default();
         let mut i = 0;
-        while i < self.data.len() {
-            // TODO: make oblivious
-            if sibling_index == i {
-                sibling = self.data[i].clone();
-            }
+        while i < self.data.len() as u64 {
+            sibling.cmov(sibling_index.ct_eq(&i), &self.data[i as usize]);
             i += 1;
         }
 
@@ -87,6 +87,7 @@ impl Tree {
         }
     }
 
+    /// update does not need to be constant-time
     pub fn update(&mut self, mut index: usize, mut value: A8Bytes<U32>) {
         let mut curr_depth = self.depth;
 
@@ -126,7 +127,7 @@ impl Tree {
         let mut inclusion_proof = vec![Default::default(); self.depth];
 
         // find leaf in level `depth`
-        let (node_index, sibling_node) = self.levels[self.depth - 1].scan_and_load_sibling(leaf);
+        let (node_index, sibling_node) = self.levels[self.depth - 1].ct_scan_and_load_sibling(leaf);
         inclusion_proof[0] = sibling_node;
 
         let mut inclusion_proof_index = 1;
@@ -137,7 +138,7 @@ impl Tree {
 
         while curr_depth > 0 {
             inclusion_proof[inclusion_proof_index] =
-                self.levels[curr_depth - 1].scan_sibling_node(parent_index);
+                self.levels[curr_depth - 1].ct_scan_sibling_node(parent_index);
             inclusion_proof_index += 1;
             curr_depth -= 1;
 
@@ -156,6 +157,13 @@ impl Tree {
     }
 }
 
+pub fn ct_eq_a32bytes(a: &A8Bytes<U32>, b: &A8Bytes<U32>) -> Choice {
+    let a_slice = a.as_slice();
+    let b_slice = b.as_slice();
+
+    a_slice.ct_eq(b_slice)
+}
+
 pub fn sibling_index(node_index: usize) -> usize {
     if node_index & 1 == 1 {
         node_index - 1
@@ -164,14 +172,18 @@ pub fn sibling_index(node_index: usize) -> usize {
     }
 }
 
-pub fn sibling_index_ct(node_index: usize) -> usize {
-    // TODO: make constant time
-    if node_index & 1 == 1 {
-        node_index - 1
-    } else {
-        node_index + 1
-    }
+/// Constant-time `sibling_index`
+pub fn ct_sibling_index(node_index: u64) -> u64 {
+    let is_odd = (node_index & 1).ct_eq(&1);
+
+    let sibling_index_if_odd = node_index.saturating_sub(1);
+    let sibling_index_if_even = node_index + 1;
+
+    let sibling_index =
+        u64::conditional_select(&sibling_index_if_even, &sibling_index_if_odd, is_odd);
+    sibling_index
 }
+
 pub fn print_tree(tree: &Tree) {
     // print root and the print rest of the vcalues
     println!("{:?}", bytes_to_hex_str(tree.root().as_slice()));
@@ -196,11 +208,14 @@ mod tests {
     #[test]
     fn inclusion_proof_works() {
         let mut rng = seeded_rng();
-        let mut tree = random_tree(16, 1 << 16, &mut rng);
+        let mut tree = random_tree(20, 100, &mut rng);
 
         let mut leaf_index = 2;
         let leaf = tree.leaf(leaf_index);
+
+        let now = std::time::Instant::now();
         let proof = tree.inclusion_proof(leaf);
+        println!("Time: {:?}", now.elapsed());
 
         let proof_hex = proof
             .iter()
