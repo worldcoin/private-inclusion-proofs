@@ -1,15 +1,15 @@
-#![feature(int_log)]
-
 use crate::{
-    hash::PoseidonHash,
+    poseidon::PoseidonHash,
     utils::{aligned_bytes_to_u256, bytes_to_hex_str},
 };
 use aligned_cmov::{typenum::U8, A8Bytes, Aligned, ArrayLength, CMov, GenericArray, A8};
 use subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 use typenum::U32;
 
-mod hash;
+mod poseidon;
 pub mod utils;
+
+pub type Node = A8Bytes<U32>;
 
 pub struct Level {
     data: Vec<A8Bytes<U32>>,

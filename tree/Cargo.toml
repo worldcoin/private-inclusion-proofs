@@ -7,11 +7,14 @@ edition = "2021"
 aligned-cmov = {git = "https://github.com/mobilecoinfoundation/mc-oblivious.git"}
 typenum = "1.17.0"
 ruint = { version = "1.2.0", features = ["serde", "num-bigint", "ark-ff"] }
-semaphore = { git = "https://github.com/worldcoin/semaphore-rs" }
 hex = "0.4.3"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
 subtle = "2.5.0"
+ark-bn254 = { version = "0.3.0" }
+ark-ff = { version = "0.3.0", default-features = false, features = ["parallel", "asm"] }
+once_cell = "1.8"
+
 
 [profile.release]
 panic = "abort"

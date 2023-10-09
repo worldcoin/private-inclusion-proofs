@@ -244,6 +244,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2bd12c1caf447e69cd4528f47f94d203fd2582878ecb9e9465484c4148a8223"
 
 [[package]]
+name = "cc"
+version = "1.0.83"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f1174fb0b6ec23863f8b971027804a42614e347eafb0a95bf0b12cdae21fc4d0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -394,6 +403,11 @@ name = "hashbrown"
 version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7dfda62a12f55daeae5015f81b0baea145391cb4520f86c248fc615d72640d12"
+
+[[package]]
+name = "hashbrown_tstd"
+version = "0.12.0"
+source = "git+https://github.com/apache/teaclave-sgx-sdk.git?tag=v1.1.6#c3d82372dff81e5bafb07f71bc8ad532d06b504e"
 
 [[package]]
 name = "hex"
@@ -823,17 +837,83 @@ dependencies = [
 ]
 
 [[package]]
+name = "sgx_alloc"
+version = "1.1.6"
+source = "git+https://github.com/apache/teaclave-sgx-sdk.git?tag=v1.1.6#c3d82372dff81e5bafb07f71bc8ad532d06b504e"
+
+[[package]]
+name = "sgx_backtrace_sys"
+version = "1.1.6"
+source = "git+https://github.com/apache/teaclave-sgx-sdk.git?tag=v1.1.6#c3d82372dff81e5bafb07f71bc8ad532d06b504e"
+dependencies = [
+ "cc",
+ "sgx_build_helper",
+ "sgx_libc",
+]
+
+[[package]]
+name = "sgx_build_helper"
+version = "1.1.6"
+source = "git+https://github.com/apache/teaclave-sgx-sdk.git?tag=v1.1.6#c3d82372dff81e5bafb07f71bc8ad532d06b504e"
+
+[[package]]
+name = "sgx_demangle"
+version = "1.1.6"
+source = "git+https://github.com/apache/teaclave-sgx-sdk.git?tag=v1.1.6#c3d82372dff81e5bafb07f71bc8ad532d06b504e"
+
+[[package]]
+name = "sgx_libc"
+version = "1.1.6"
+source = "git+https://github.com/apache/teaclave-sgx-sdk.git?tag=v1.1.6#c3d82372dff81e5bafb07f71bc8ad532d06b504e"
+dependencies = [
+ "sgx_types",
+]
+
+[[package]]
+name = "sgx_tprotected_fs"
+version = "1.1.6"
+source = "git+https://github.com/apache/teaclave-sgx-sdk.git?tag=v1.1.6#c3d82372dff81e5bafb07f71bc8ad532d06b504e"
+dependencies = [
+ "sgx_trts",
+ "sgx_types",
+]
+
+[[package]]
+name = "sgx_trts"
+version = "1.1.6"
+source = "git+https://github.com/apache/teaclave-sgx-sdk.git?tag=v1.1.6#c3d82372dff81e5bafb07f71bc8ad532d06b504e"
+dependencies = [
+ "sgx_libc",
+ "sgx_types",
+]
+
+[[package]]
+name = "sgx_tstd"
+version = "1.1.6"
+source = "git+https://github.com/apache/teaclave-sgx-sdk.git?tag=v1.1.6#c3d82372dff81e5bafb07f71bc8ad532d06b504e"
+dependencies = [
+ "hashbrown_tstd",
+ "sgx_alloc",
+ "sgx_backtrace_sys",
+ "sgx_demangle",
+ "sgx_libc",
+ "sgx_tprotected_fs",
+ "sgx_trts",
+ "sgx_types",
+ "sgx_unwind",
+]
+
+[[package]]
 name = "sgx_types"
 version = "1.1.6"
 source = "git+https://github.com/apache/teaclave-sgx-sdk.git?tag=v1.1.6#c3d82372dff81e5bafb07f71bc8ad532d06b504e"
 
 [[package]]
-name = "sgx_urts"
+name = "sgx_unwind"
 version = "1.1.6"
 source = "git+https://github.com/apache/teaclave-sgx-sdk.git?tag=v1.1.6#c3d82372dff81e5bafb07f71bc8ad532d06b504e"
 dependencies = [
- "libc",
- "sgx_types",
+ "sgx_build_helper",
 ]
 
 [[package]]
@@ -939,6 +1019,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "trusted"
+version = "0.1.0"
+dependencies = [
+ "sgx_libc",
+ "sgx_trts",
+ "sgx_tstd",
+ "sgx_types",
+ "tree",
+]
+
+[[package]]
 name = "typenum"
 version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -973,17 +1064,6 @@ name = "unicode-ident"
 version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3354b9ac3fae1ff6755cb6db53683adb661634f67557942dea4facebec0fee4b"
-
-[[package]]
-name = "untrusted"
-version = "0.1.0"
-dependencies = [
- "rand",
- "rand_chacha",
- "sgx_types",
- "sgx_urts",
- "tree",
-]
 
 [[package]]
 name = "valuable"

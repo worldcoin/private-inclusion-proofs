@@ -6,8 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+tree = {path = "./../tree"}
+
 sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git", tag = "v1.1.6" }
 sgx_urts = { git = "https://github.com/apache/teaclave-sgx-sdk.git", tag = "v1.1.6"}
-tree = {path = "./../tree"}
 rand = "0.8.5"
 rand_chacha = "0.3.1"
