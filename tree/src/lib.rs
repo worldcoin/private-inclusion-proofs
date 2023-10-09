@@ -1,21 +1,15 @@
-use crate::utils::{aligned_bytes_to_u256, bytes_to_hex_str};
+#![feature(int_log)]
+
+use crate::{
+    hash::PoseidonHash,
+    utils::{aligned_bytes_to_u256, bytes_to_hex_str},
+};
 use aligned_cmov::{typenum::U8, A8Bytes, Aligned, ArrayLength, CMov, GenericArray, A8};
-use semaphore::poseidon;
 use subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 use typenum::U32;
 
+mod hash;
 pub mod utils;
-
-pub struct PoseidonHash;
-
-impl PoseidonHash {
-    fn hash_node(left: &A8Bytes<U32>, right: &A8Bytes<U32>) -> A8Bytes<U32> {
-        let left = aligned_bytes_to_u256(left);
-        let right = aligned_bytes_to_u256(right);
-        let hash: [u8; 32] = poseidon::hash2(left, right).to_be_bytes();
-        A8Bytes::<U32>::from(Aligned(GenericArray::from(hash)))
-    }
-}
 
 pub struct Level {
     data: Vec<A8Bytes<U32>>,
@@ -29,7 +23,8 @@ impl Level {
         &self.data[index]
     }
 
-    /// scan for `node` and retursn node's index and sibling node in constant-time
+    /// scan for `node` and retursn node's index and sibling node in
+    /// constant-time
     fn ct_scan_and_load_sibling(&self, node: &A8Bytes<U32>) -> (u64, A8Bytes<U32>) {
         // Load 4Kb using ocall; do some stuff and store.
         let mut sibling: A8Bytes<U32> = Default::default();
@@ -66,8 +61,8 @@ impl Level {
 
 pub struct Tree {
     levels: Vec<Level>,
-    root: A8Bytes<U32>,
-    depth: usize,
+    root:   A8Bytes<U32>,
+    depth:  usize,
 }
 
 impl Tree {
@@ -126,7 +121,7 @@ impl Tree {
     pub fn inclusion_proof(&self, leaf: &A8Bytes<U32>) -> Vec<A8Bytes<U32>> {
         let mut inclusion_proof = vec![Default::default(); self.depth];
 
-        // find leaf in level `depth`
+        // find leaf at level `depth`
         let (node_index, sibling_node) = self.levels[self.depth - 1].ct_scan_and_load_sibling(leaf);
         inclusion_proof[0] = sibling_node;
 
@@ -157,6 +152,7 @@ impl Tree {
     }
 }
 
+/// Check equality of two `a` and `b` in constant time
 pub fn ct_eq_a32bytes(a: &A8Bytes<U32>, b: &A8Bytes<U32>) -> Choice {
     let a_slice = a.as_slice();
     let b_slice = b.as_slice();

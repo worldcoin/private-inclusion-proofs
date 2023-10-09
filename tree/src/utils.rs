@@ -5,10 +5,7 @@ use rand_chacha::ChaCha8Rng;
 use ruint::{aliases::U256, uint};
 use typenum::U32;
 
-// See <https://docs.rs/ark-bn254/latest/ark_bn254>
-pub const MODULUS: U256 =
-    uint!(21888242871839275222246405745257275088548364400416034343698204186575808495617_U256);
-
+/// Converts 8 byte aligned 32 bytes to U256
 pub fn aligned_bytes_to_u256(aligned_bytes: &A8Bytes<U32>) -> U256 {
     let mut bytes = [0u8; 32];
     aligned_bytes
