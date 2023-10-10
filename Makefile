@@ -106,7 +106,7 @@ RustEnclave_Compile_Flags := $(SGX_COMMON_CFLAGS) $(ENCLAVE_CFLAGS) $(RustEnclav
 RustEnclave_Link_Flags := -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_LIBRARY_PATH) \
 	-Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
 	-Wl,--start-group -lsgx_tstdc -l$(Service_Library_Name) -l$(Crypto_Library_Name) $(RustEnclave_Link_Libs) -Wl,--end-group \
-	-Wl,--version-script=enclave/Enclave.lds \
+	-Wl,--version-script=$(ENCLAVE_DIR)/Enclave.lds \
 	$(ENCLAVE_LDFLAGS)
 
 RustEnclave_Name := $(ENCLAVE_DIR)/enclave.so
@@ -144,7 +144,7 @@ $(ENCLAVE_DIR)/Enclave_t.o: $(Enclave_EDL_Files)
 	@$(CC) $(RustEnclave_Compile_Flags) -c $(ENCLAVE_DIR)/Enclave_t.c -o $@
 	@echo "CC   <=  $<"
 
-$(RustEnclave_Name): $(ENCLAVE_DIR) $(ENCLAVE_DIR)/Enclave_t.o
+$(RustEnclave_Name): trusted $(ENCLAVE_DIR)/Enclave_t.o
 	@$(CXX) $(ENCLAVE_DIR)/Enclave_t.o -o $@ $(RustEnclave_Link_Flags)
 	@echo "LINK =>  $@"
 
@@ -158,9 +158,9 @@ $(Signed_RustEnclave_Name): $(RustEnclave_Name) $(Enclave_signing_private_key)
 	@$(SGX_ENCLAVE_SIGNER) sign -key $(Enclave_signing_private_key) -enclave $(RustEnclave_Name) -out $@ -config $(ENCLAVE_DIR)/Enclave.config.xml
 	@echo "SIGN =>  $@"
 
-.PHONY: enclave
-enclave:
-	$(MAKE) -C ./$(ENCLAVE_DIR)/
+.PHONY: trusted
+trusted:
+	$(MAKE) -C $(ENCLAVE_DIR)
 
 
 .PHONY: clean

@@ -4,12 +4,14 @@ extern crate sgx_urts;
 use rand::thread_rng;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
-use tree::{utils::random_tree, Node, Tree};
+use tree::{
+    utils::{bytes_to_hex_str, random_tree},
+    Node, Tree,
+};
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 static mut TREE_PTR: *mut Tree = std::ptr::null_mut();
 static DEPTH: usize = 16;
-
 extern "C" {
     fn inclusion_proof(
         eid: sgx_enclave_id_t,
@@ -47,7 +49,7 @@ pub fn update_tree(index: usize, value: Node) {
     }
 }
 
-pub fn generate_inclusion_proof(eid: sgx_enclave_id_t, leaf: Node) {
+pub fn generate_inclusion_proof(eid: sgx_enclave_id_t, leaf: Node) -> Vec<Node> {
     let leaf_node_ptr = leaf.as_ptr();
     let leaf_node_count = 32;
 
@@ -69,14 +71,23 @@ pub fn generate_inclusion_proof(eid: sgx_enclave_id_t, leaf: Node) {
     };
 
     // check status
+    match ret_status {
+        sgx_status_t::SGX_SUCCESS => {}
+        _ => {
+            println!("[U] ECALL Enclave Failed {}!", ret_status.as_str());
+        }
+    };
 
-    // return proof
+    proof
 }
 
 fn main() {
     // Create tree
     let mut rng = thread_rng();
     let tree = Box::new(random_tree(DEPTH, 10, &mut rng));
+
+    let leaf = { tree.leaf(2).clone() };
+
     let tree_ptr = Box::into_raw(tree);
     unsafe { TREE_PTR = tree_ptr };
 
@@ -90,6 +101,14 @@ fn main() {
             return;
         }
     };
+
+    let proof = generate_inclusion_proof(enclave.geteid(), leaf);
+
+    println!();
+    proof.iter().for_each(|p| {
+        println!("[U] Proof node: {}", bytes_to_hex_str(p));
+    });
+    println!();
 
     let _get_dropped = unsafe { Box::from_raw(TREE_PTR) };
 
