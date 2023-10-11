@@ -14,7 +14,7 @@ type Node = A8Bytes<U32>;
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 static mut TREE_PTR: *mut Tree = std::ptr::null_mut();
-static DEPTH: usize = 16;
+static DEPTH: usize = 20;
 
 extern "C" {
     fn inclusion_proof(
@@ -111,7 +111,9 @@ fn main() {
         }
     };
 
+    let now = std::time::Instant::now();
     let proof_sgx = generate_inclusion_proof_sgx(enclave.geteid(), &leaf);
+    println!("[U] Proof generation time: {}ms", now.elapsed().as_millis());
     let proof = unsafe { TREE_PTR.as_ref().unwrap().inclusion_proof(&leaf) };
 
     assert_eq!(proof_sgx, proof);
