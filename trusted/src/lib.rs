@@ -12,7 +12,7 @@ use sgx_types::*;
 use std::{
     boxed::Box,
     io::{self, Write},
-    slice,
+    println, slice,
 };
 use tree::{
     aligned_cmov::{typenum::U32, Aligned, GenericArray, A8},
@@ -27,15 +27,30 @@ pub extern "C" fn inclusion_proof(
     proof_ptr: *mut u8,
     proof_count: usize,
 ) -> sgx_status_t {
-    let tree = unsafe { Box::from_raw(tree_ptr as *mut Tree) };
-
     let leaf_slice = unsafe { std::slice::from_raw_parts(leaf_node_ptr, leaf_node_count) };
     let mut leaf = GenericArray::default();
     leaf.clone_from_slice(leaf_slice);
     let leaf = Aligned(leaf);
 
-    let proof = tree.inclusion_proof(&leaf);
+    let proof = unsafe {
+        let proof = (tree_ptr as *mut Tree)
+            .as_ref()
+            .unwrap()
+            .inclusion_proof(&leaf);
+        proof
+    };
+
+    // println!();
+    // println!("[T] Proof generated!");
+    // proof.iter().for_each(|p| {
+    //     println!("[T] Proof node: {:?}", p);
+    // });
+    // println!();
+
     let src_proof_ptr = proof.as_ptr() as *const u8;
     unsafe { std::ptr::copy(src_proof_ptr, proof_ptr, proof_count) };
+
+    // println!("[T] Proof returning!");
+
     sgx_status_t::SGX_SUCCESS
 }

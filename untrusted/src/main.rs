@@ -15,6 +15,7 @@ type Node = A8Bytes<U32>;
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 static mut TREE_PTR: *mut Tree = std::ptr::null_mut();
 static DEPTH: usize = 16;
+
 extern "C" {
     fn inclusion_proof(
         eid: sgx_enclave_id_t,
@@ -52,13 +53,17 @@ pub fn update_tree(index: usize, value: Node) {
     }
 }
 
-pub fn generate_inclusion_proof(eid: sgx_enclave_id_t, leaf: Node) -> Vec<Node> {
+pub fn generate_inclusion_proof_sgx(eid: sgx_enclave_id_t, leaf: &Node) -> Vec<Node> {
     let leaf_node_ptr = leaf.as_ptr();
     let leaf_node_count = 32;
 
     let mut proof = vec![Node::default(); DEPTH];
     let proof_ptr = proof.as_mut_ptr() as *mut u8;
     let proof_count = 32 * DEPTH;
+
+    // unsafe {
+    //     println!("[U] Tree pointer: {:?}", TREE_PTR);
+    // }
 
     let mut ret_val = sgx_status_t::SGX_SUCCESS;
     let ret_status = unsafe {
@@ -87,9 +92,10 @@ pub fn generate_inclusion_proof(eid: sgx_enclave_id_t, leaf: Node) -> Vec<Node> 
 fn main() {
     // Create tree
     let mut rng = thread_rng();
-    let tree = Box::new(random_tree(DEPTH, 10, &mut rng));
+    let tree = Box::new(random_tree(DEPTH, 1 << 5, &mut rng));
 
     let leaf = { tree.leaf(2).clone() };
+    println!("[U] Generate proof for leaf: {:?}", leaf);
 
     let tree_ptr = Box::into_raw(tree);
     unsafe { TREE_PTR = tree_ptr };
@@ -105,13 +111,25 @@ fn main() {
         }
     };
 
-    let proof = generate_inclusion_proof(enclave.geteid(), leaf);
+    let proof_sgx = generate_inclusion_proof_sgx(enclave.geteid(), &leaf);
+    let proof = unsafe { TREE_PTR.as_ref().unwrap().inclusion_proof(&leaf) };
 
-    println!();
-    proof.iter().for_each(|p| {
-        println!("[U] Proof node: {}", bytes_to_hex_str(p));
-    });
-    println!();
+    assert_eq!(proof_sgx, proof);
+
+    // println!();
+    // println!();
+    // proof
+    //     .iter()
+    //     .zip(proof_sgx.iter())
+    //     .enumerate()
+    //     .for_each(|(index, (p, psgx))| {
+    //         println!("[U] Node: {index}");
+    //         println!("[U] Proof node: {:?}", p);
+    //         println!("[U] SGX-Proof node: {:?}", psgx);
+    //         println!("");
+    //     });
+    // println!();
+    // println!();
 
     let _get_dropped = unsafe { Box::from_raw(TREE_PTR) };
 
