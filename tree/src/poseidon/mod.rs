@@ -7,6 +7,7 @@ use ark_bn254::Fr;
 use ark_ff::{Field, Zero};
 use once_cell::sync::Lazy;
 use ruint::aliases::U256;
+use std::vec::Vec;
 use typenum::U32;
 
 static M1: Lazy<[[Fr; 2]; 2]> = Lazy::new(|| {

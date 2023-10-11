@@ -5,9 +5,12 @@ use rand::thread_rng;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
 use tree::{
+    aligned_cmov::{typenum::U32, A8Bytes},
     utils::{bytes_to_hex_str, random_tree},
-    Node, Tree,
+    Tree,
 };
+
+type Node = A8Bytes<U32>;
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 static mut TREE_PTR: *mut Tree = std::ptr::null_mut();

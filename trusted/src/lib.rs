@@ -14,7 +14,10 @@ use std::{
     io::{self, Write},
     slice,
 };
-use tree::{Node, Tree};
+use tree::{
+    aligned_cmov::{typenum::U32, Aligned, GenericArray, A8},
+    Tree,
+};
 
 #[no_mangle]
 pub extern "C" fn inclusion_proof(
@@ -26,13 +29,13 @@ pub extern "C" fn inclusion_proof(
 ) -> sgx_status_t {
     let tree = unsafe { Box::from_raw(tree_ptr as *mut Tree) };
 
-    let leaf = unsafe { std::slice::from_raw_parts(leaf_node_ptr, leaf_node_count) };
-    let leaf = Node::from_iter(leaf.iter());
+    let leaf_slice = unsafe { std::slice::from_raw_parts(leaf_node_ptr, leaf_node_count) };
+    let mut leaf = GenericArray::default();
+    leaf.clone_from_slice(leaf_slice);
+    let leaf = Aligned(leaf);
 
     let proof = tree.inclusion_proof(&leaf);
-
-    let proof_ret = unsafe { std::slice::from_raw_parts_mut(proof_ptr, proof_count) };
-    proof_ret.copy_from_slice(proof.as_slice());
-
+    let src_proof_ptr = proof.as_ptr() as *const u8;
+    unsafe { std::ptr::copy(src_proof_ptr, proof_ptr, proof_count) };
     sgx_status_t::SGX_SUCCESS
 }

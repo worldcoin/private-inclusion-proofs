@@ -1,8 +1,9 @@
 use crate::{print_tree, Tree};
 use aligned_cmov::{A8Bytes, Aligned, GenericArray, A8};
-use rand::{thread_rng, CryptoRng, RngCore, SeedableRng};
+use rand::{CryptoRng, RngCore, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use ruint::{aliases::U256, uint};
+use std::{string::String, vec};
 use typenum::U32;
 
 /// Converts 8 byte aligned 32 bytes to U256
@@ -65,9 +66,10 @@ pub fn seeded_rng() -> ChaCha8Rng {
     rng
 }
 
+#[cfg(not(feature = "sgx"))]
 #[cfg(test)]
 mod tests {
-    use crate::PoseidonHash;
+    use crate::poseidon::PoseidonHash;
 
     use super::*;
 
@@ -80,6 +82,5 @@ mod tests {
             "0x004ce172b9216f419f445367456d5619314a42a3da86b001387bfdb80e0cfe42",
         )));
         let hash = bytes_to_hex_str(PoseidonHash::hash_node(&left, &right).as_slice());
-        dbg!(hash);
     }
 }

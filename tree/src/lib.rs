@@ -1,22 +1,23 @@
-#![cfg_attr(not(target_env = "sgx"), no_std)]
-#![cfg_attr(target_env = "sgx", feature(rustc_private))]
+#![no_std]
 
-#[cfg(not(target_env = "sgx"))]
+#[cfg(feature = "sgx")]
 #[macro_use]
 extern crate sgx_tstd as std;
 
-use crate::{
-    poseidon::PoseidonHash,
-    utils::{aligned_bytes_to_u256, bytes_to_hex_str},
-};
+#[cfg(not(feature = "sgx"))]
+extern crate std;
+
 use aligned_cmov::{typenum::U8, A8Bytes, Aligned, ArrayLength, CMov, GenericArray, A8};
+use std::{vec, vec::Vec};
 use subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 use typenum::U32;
 
-mod poseidon;
 pub mod utils;
 
-pub type Node = A8Bytes<U32>;
+#[cfg(not(feature = "sgx"))]
+mod poseidon;
+
+pub use aligned_cmov;
 
 pub struct Level {
     data: Vec<A8Bytes<U32>>,
@@ -89,6 +90,7 @@ impl Tree {
         }
     }
 
+    #[cfg(not(feature = "sgx"))]
     /// update does not need to be constant-time
     pub fn update(&mut self, mut index: usize, mut value: A8Bytes<U32>) {
         let mut curr_depth = self.depth;
@@ -114,7 +116,7 @@ impl Tree {
             } else {
                 (&value, sibling_node)
             };
-            value = PoseidonHash::hash_node(left, right);
+            value = poseidon::PoseidonHash::hash_node(left, right);
 
             curr_depth -= 1;
             index >>= 1;
@@ -187,26 +189,31 @@ pub fn ct_sibling_index(node_index: u64) -> u64 {
     sibling_index
 }
 
+#[cfg(not(feature = "sgx"))]
 pub fn print_tree(tree: &Tree) {
     // print root and the print rest of the vcalues
-    println!("{:?}", bytes_to_hex_str(tree.root().as_slice()));
+    std::println!(
+        "{:?}",
+        crate::utils::bytes_to_hex_str(tree.root().as_slice())
+    );
 
     let depth = tree.depth;
     for l in 0..depth {
         let mut l_nodes = vec![];
         for node in tree.levels[l].data.iter() {
-            l_nodes.push(bytes_to_hex_str(node.as_slice()));
+            l_nodes.push(crate::utils::bytes_to_hex_str(node.as_slice()));
         }
-        println!("Level {}: {:?}", l + 1, l_nodes);
+        std::println!("Level {}: {:?}", l + 1, l_nodes);
     }
 }
 
+#[cfg(not(feature = "sgx"))]
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::utils::{rand_leaf, random_tree, seeded_rng};
     use aligned_cmov::{typenum::U8, A8Bytes, Aligned, GenericArray, A8};
-    use rand::thread_rng;
+    use std::{println, string::String};
 
     #[test]
     fn inclusion_proof_works() {
@@ -222,7 +229,7 @@ mod tests {
 
         let proof_hex = proof
             .iter()
-            .map(|node| bytes_to_hex_str(node.as_slice()))
+            .map(|node| utils::bytes_to_hex_str(node.as_slice()))
             .collect::<Vec<String>>();
 
         // check proof
@@ -235,7 +242,7 @@ mod tests {
                 (&curr_node, &proof[i])
             };
 
-            curr_node = PoseidonHash::hash_node(left, right);
+            curr_node = poseidon::PoseidonHash::hash_node(left, right);
             curr_index >>= 1;
         }
 
